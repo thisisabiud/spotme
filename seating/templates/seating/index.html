@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Finder - Discover Amazing Events</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'shimmer': 'shimmer 2s linear infinite',
+                        'slide-in': 'slideIn 0.5s ease-out',
+                        'scale-in': 'scaleIn 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.4s ease-out',
+                        'bounce-subtle': 'bounceSubtle 2s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' }
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-1000px 0' },
+                            '100%': { backgroundPosition: '1000px 0' }
+                        },
+                        slideIn: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.9)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        bounceSubtle: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .card-3d {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .card-3d:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tag-pill {
+            transition: all 0.3s ease;
+        }
+        
+        .tag-pill:hover {
+            transform: scale(1.05);
+        }
+        
+        .tag-pill.active {
+            ring: 4px;
+            ring-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
+        .floating-shapes {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+        
+        .shape {
+            position: absolute;
+            opacity: 0.1;
+        }
+        
+        .search-glow:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+        
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .animated-gradient {
+            background: linear-gradient(270deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 400% 400%;
+            animation: gradient-shift 15s ease infinite;
+        }
+
+        .scroll-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .scroll-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        .filter-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .filter-dropdown.open {
+            max-height: 500px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <!-- Modern Hero Section -->
+    <div class="relative overflow-hidden animated-gradient py-24">
+        <div class="floating-shapes">
+            <div class="shape w-64 h-64 bg-white rounded-full blur-3xl top-10 -left-20 animate-float"></div>
+            <div class="shape w-96 h-96 bg-white rounded-full blur-3xl bottom-0 -right-32 animate-float" style="animation-delay: 1s;"></div>
+        </div>
+        
+        <div class="relative max-w-7xl mx-auto px-4 text-center">
+            <div class="inline-block mb-4 animate-bounce-subtle">
+                <span class="bg-white/20 backdrop-blur-md text-white px-6 py-2 rounded-full text-sm font-semibold border border-white/30">
+                    ✨ Discover Your Next Experience
+                </span>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight animate-fade-in">
+                Find Events That
+                <span class="block bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-transparent">
+                    Inspire You
+                </span>
+            </h1>
+            <p class="text-xl text-white/90 mb-8 max-w-2xl mx-auto font-light">
+                From electrifying concerts to mind-expanding conferences — your perfect event awaits
+            </p>
+            
+            <!-- Quick Stats -->
+            <div class="flex flex-wrap justify-center gap-8 mt-12">
+                <div class="glass-morphism px-8 py-4 rounded-2xl hover:scale-105 transition-transform cursor-default">
+                    <div class="text-3xl font-bold text-white mb-1">1,000+</div>
+                    <div class="text-white/80 text-sm font-medium">Live Events</div>
+                </div>
+                <div class="glass-morphism px-8 py-4 rounded-2xl hover:scale-105 transition-transform cursor-default">
+                    <div class="text-3xl font-bold text-white mb-1">50K+</div>
+                    <div class="text-white/80 text-sm font-medium">Happy Attendees</div>
+                </div>
+                <div class="glass-morphism px-8 py-4 rounded-2xl hover:scale-105 transition-transform cursor-default">
+                    <div class="text-3xl font-bold text-white mb-1">24/7</div>
+                    <div class="text-white/80 text-sm font-medium">Support Team</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Search Section -->
+    <div class="max-w-7xl mx-auto px-4 -mt-12 mb-16">
+        <div class="glass-morphism rounded-3xl shadow-2xl p-8 border-2 border-white/50 animate-slide-in">
+            <form id="search-form">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+                    <!-- Search Input with Icon -->
+                    <div class="lg:col-span-6">
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400 group-hover:text-indigo-500 transition-colors"></i>
+                            </div>
+                            <input type="text" 
+                                   id="event-search" 
+                                   class="w-full pl-12 pr-12 py-4 bg-white border-2 border-gray-200 rounded-2xl focus:border-indigo-500 focus:ring-0 focus:outline-none transition-all search-glow font-medium"
+                                   placeholder="Search concerts, sports, theater..."
+                                   autocomplete="off">
+                            <button type="button" id="clear-search" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors hidden">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Date Filter -->
+                    <div class="lg:col-span-4">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fas fa-calendar-alt text-gray-400"></i>
+                            </div>
+                            <select id="date-filter" 
+                                    class="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-2xl focus:border-indigo-500 focus:ring-0 focus:outline-none transition-all font-medium appearance-none cursor-pointer">
+                                <option value="all">All Events</option>
+                                <option value="upcoming" selected>Upcoming</option>
+                                <option value="this_week">This Week</option>
+                                <option value="this_month">This Month</option>
+                                <option value="past">Past Events</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                <i class="fas fa-chevron-down text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Button -->
+                    <div class="lg:col-span-2">
+                        <button type="submit" 
+                                class="w-full h-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                            <i class="fas fa-search mr-2"></i>Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category Tags -->
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" class="quick-filter tag-pill bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md" data-filter="concerts">
+                        <i class="fas fa-music mr-2"></i>Concerts
+                    </button>
+                    <button type="button" class="quick-filter tag-pill bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md" data-filter="conferences">
+                        <i class="fas fa-users mr-2"></i>Conferences
+                    </button>
+                    <button type="button" class="quick-filter tag-pill bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md" data-filter="sports">
+                        <i class="fas fa-futbol mr-2"></i>Sports
+                    </button>
+                    <button type="button" class="quick-filter tag-pill bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md" data-filter="theater">
+                        <i class="fas fa-theater-masks mr-2"></i>Theater
+                    </button>
+                    <button type="button" class="quick-filter tag-pill bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md" data-filter="festivals">
+                        <i class="fas fa-star mr-2"></i>Festivals
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="hidden text-center py-20">
+            <div class="relative inline-flex items-center justify-center">
+                <div class="absolute animate-spin rounded-full h-20 w-20 border-4 border-indigo-200"></div>
+                <div class="absolute animate-spin rounded-full h-20 w-20 border-t-4 border-indigo-600" style="animation-duration: 1s;"></div>
+                <div class="absolute animate-ping rounded-full h-16 w-16 bg-indigo-400 opacity-20"></div>
+            </div>
+            <p class="mt-6 text-gray-600 font-semibold text-lg">Discovering amazing events...</p>
+        </div>
+
+        <!-- Search Results -->
+        <div id="search-results" class="hidden mt-12">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+                <div>
+                    <h2 class="text-3xl font-black text-gray-900 mb-2">
+                        <i class="fas fa-sparkles mr-2 text-indigo-500"></i>Discover Events
+                    </h2>
+                    <p class="text-gray-600">Find your next unforgettable experience</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div id="results-count" class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg"></div>
+                    <button id="toggle-filters" class="bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-full font-semibold shadow-md transition-all">
+                        <i class="fas fa-sliders-h mr-2"></i>Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Advanced Filters -->
+            <div id="advanced-filters" class="filter-dropdown mb-8">
+                <div class="glass-morphism rounded-2xl p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-map-marker-alt mr-1"></i>Location
+                            </label>
+                            <input type="text" id="location-filter" placeholder="Enter city or venue" class="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-dollar-sign mr-1"></i>Price Range
+                            </label>
+                            <select id="price-filter" class="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer">
+                                <option value="all">All Prices</option>
+                                <option value="free">Free</option>
+                                <option value="0-50">$0 - $50</option>
+                                <option value="50-100">$50 - $100</option>
+                                <option value="100+">$100+</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-sort mr-1"></i>Sort By
+                            </label>
+                            <select id="sort-filter" class="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:border-indigo-500 focus:outline-none appearance-none cursor-pointer">
+                                <option value="date">Date</option>
+                                <option value="popularity">Popularity</option>
+                                <option value="price-low">Price: Low to High</option>
+                                <option value="price-high">Price: High to Low</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+        </div>
+
+        <!-- No Results Message -->
+        <div id="no-results" class="hidden text-center py-24">
+            <div class="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full mb-6">
+                <i class="fas fa-search text-4xl text-gray-400"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-700 mb-3">No Events Found</h3>
+            <p class="text-gray-500 mb-8 text-lg">Try different search terms or browse all categories</p>
+            <button id="reset-search" class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg">
+                <i class="fas fa-refresh mr-2"></i>Reset Search
+            </button>
+        </div>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button id="scroll-to-top" class="scroll-to-top bg-gradient-to-r from-indigo-600 to-purple-600 text-white w-14 h-14 rounded-full shadow-2xl hover:shadow-3xl transition-all flex items-center justify-center">
+        <i class="fas fa-arrow-up text-xl"></i>
+    </button>
+
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="fixed top-6 right-6 z-50 hidden max-w-md">
+        <div class="glass-morphism border-l-4 border-indigo-500 rounded-2xl shadow-2xl p-5 animate-scale-in">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-indigo-500 text-2xl"></i>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p id="toast-message" class="text-gray-800 font-semibold"></p>
+                </div>
+                <button id="close-toast" class="ml-4 text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let searchTimeout;
+            let isLoading = false;
+
+            // Initialize
+            init();
+
+            function init() {
+                fetchEvents();
+                setupEventListeners();
+                showToast('Welcome! Let\'s find your perfect event 🎉');
+            }
+
+            function setupEventListeners() {
+                // Search input with debounce
+                $('#event-search').on('input', function() {
+                    const value = $(this).val().trim();
+                    $('#clear-search').toggle(value.length > 0);
+                    
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(performSearch, 500);
+                });
+
+                // Clear search button
+                $('#clear-search').on('click', function() {
+                    clearSearch();
+                });
+
+                // Date filter change
+                $('#date-filter').on('change', performSearch);
+
+                // Form submit
+                $('#search-form').on('submit', function(e) {
+                    e.preventDefault();
+                    performSearch();
+                });
+
+                // Quick filter buttons
+                $('.quick-filter').on('click', function() {
+                    const filterValue = $(this).data('filter');
+                    $('#event-search').val(filterValue);
+                    
+                    $('.quick-filter').removeClass('ring-4 ring-white ring-opacity-50 scale-105');
+                    $(this).addClass('ring-4 ring-white ring-opacity-50 scale-105');
+                    
+                    performSearch();
+                });
+
+                // Reset search button
+                $('#reset-search').on('click', clearSearch);
+
+                // Close toast
+                $('#close-toast').on('click', hideToast);
+
+                // Toggle advanced filters
+                $('#toggle-filters').on('click', function() {
+                    $('#advanced-filters').toggleClass('open');
+                    $(this).find('i').toggleClass('fa-sliders-h fa-times');
+                });
+
+                // Advanced filter changes
+                $('#location-filter, #price-filter, #sort-filter').on('change', performSearch);
+
+                // Scroll to top button
+                $(window).on('scroll', function() {
+                    if ($(this).scrollTop() > 300) {
+                        $('#scroll-to-top').addClass('visible');
+                    } else {
+                        $('#scroll-to-top').removeClass('visible');
+                    }
+                });
+
+                $('#scroll-to-top').on('click', function() {
+                    $('html, body').animate({ scrollTop: 0 }, 600);
+                });
+
+                // Keyboard shortcuts
+                $(document).on('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        clearSearch();
+                    }
+                    if (e.ctrlKey && e.key === 'k') {
+                        e.preventDefault();
+                        $('#event-search').focus();
+                    }
+                });
+            }
+
+            function performSearch() {
+                fetchEvents();
+            }
+
+            function fetchEvents() {
+                if (isLoading) return;
+                isLoading = true;
+                showLoadingSpinner();
+
+                const query = $('#event-search').val().trim();
+                const dateFilterValue = $('#date-filter').val();
+                const location = $('#location-filter').val().trim();
+                const price = $('#price-filter').val();
+                const sort = $('#sort-filter').val();
+
+                const params = $.param({
+                    q: query,
+                    date_filter: dateFilterValue,
+                    location: location,
+                    price: price,
+                    sort: sort,
+                    limit: 12
+                });
+
+                $.ajax({
+                    url: `/api/search/events/?${params}`,
+                    method: 'GET',
+                    dataType: 'json',
+                    timeout: 10000,
+                    success: function(data) {
+                        hideLoadingSpinner();
+                        if ((data.success || data.results) && Array.isArray(data.results)) {
+                            displayEvents(data.results);
+                            $('#results-count').text(`${data.results.length} event${data.results.length !== 1 ? 's' : ''}`);
+                            
+                            if (data.results.length === 0) {
+                                showNoResults();
+                            } else {
+                                hideNoResults();
+                            }
+                        } else {
+                            showNoResults();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        hideLoadingSpinner();
+                        showNoResults();
+                        showToast('Oops! Could not fetch events. Please try again.');
+                        console.error('Fetch error:', error);
+                    },
+                    complete: function() {
+                        isLoading = false;
+                    }
+                });
+            }
+
+            function displayEvents(events) {
+                const $container = $('#results-container');
+                $container.empty();
+                
+                if (!events || events.length === 0) {
+                    showNoResults();
+                    return;
+                }
+
+                events.forEach((event, index) => {
+                    const $eventCard = createEventCard(event);
+                    $eventCard.css({
+                        opacity: 0,
+                        transform: 'translateY(20px)'
+                    });
+                    
+                    $container.append($eventCard);
+                    
+                    setTimeout(() => {
+                        $eventCard.animate({
+                            opacity: 1
+                        }, 500).css({
+                            transform: 'translateY(0)',
+                            transition: 'transform 0.5s ease-out'
+                        });
+                    }, index * 80);
+                });
+                
+                showSearchResults();
+            }
+
+            function createEventCard(event) {
+                const eventDate = new Date(event.date);
+                const formattedDate = eventDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+
+                const statusConfig = event.status === 'upcoming' 
+                    ? { bg: 'from-green-500 to-emerald-500', text: 'Upcoming', icon: 'fa-clock' }
+                    : { bg: 'from-gray-400 to-gray-500', text: 'Past', icon: 'fa-check' };
+
+                const availabilityConfig = event.occupancy_rate >= 90 
+                    ? { color: 'text-red-600', bgGrad: 'from-red-500 to-pink-500', status: 'Almost Full!' }
+                    : event.occupancy_rate >= 70 
+                    ? { color: 'text-yellow-600', bgGrad: 'from-yellow-500 to-orange-500', status: 'Filling Fast' }
+                    : { color: 'text-green-600', bgGrad: 'from-green-500 to-emerald-500', status: 'Available' };
+
+                const $card = $('<div>', {
+                    class: 'bg-white rounded-3xl shadow-lg card-3d border border-gray-100 overflow-hidden',
+                    html: `
+                        <div class="relative overflow-hidden">
+                            <div class="bg-gradient-to-br ${statusConfig.bg} h-48 relative">
+                                <div class="absolute inset-0 opacity-20" style="background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+                                <div class="absolute top-4 left-4">
+                                    <span class="bg-white/95 backdrop-blur-sm text-gray-800 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg">
+                                        <i class="fas ${statusConfig.icon}"></i>${statusConfig.text}
+                                    </span>
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
+                                    <h3 class="text-xl font-black text-white line-clamp-2 mb-2">${event.name}</h3>
+                                    <div class="flex items-center gap-2 text-white/90 text-sm font-medium">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span class="truncate">${event.venue}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6">
+                            <p class="text-gray-600 text-sm leading-relaxed mb-5 line-clamp-2">${event.description || 'An amazing event experience awaits you'}</p>
+                            
+                            <div class="space-y-3 mb-5">
+                                <div class="flex items-center gap-3 text-gray-700">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-calendar text-blue-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500 font-medium">Date & Time</div>
+                                        <div class="font-semibold">${formattedDate} ${event.time ? '• ' + event.time : ''}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center gap-3 text-gray-700">
+                                    <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-ticket-alt text-green-600"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-gray-500 font-medium">Availability</div>
+                                        <div class="font-semibold ${availabilityConfig.color}">
+                                            ${event.available_seats} seats • ${availabilityConfig.status}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Occupancy Progress -->
+                            <div class="mb-5">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wide">Occupancy</span>
+                                    <span class="text-sm font-black ${availabilityConfig.color}">${event.occupancy_rate}%</span>
+                                </div>
+                                <div class="relative h-3 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="progress-bar absolute inset-0 bg-gradient-to-r ${availabilityConfig.bgGrad} rounded-full transition-all duration-1000 ease-out" 
+                                         style="width: 0%"
+                                         data-width="${event.occupancy_rate}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- CTA Button -->
+                            <a href="${event.url}" 
+                               class="block w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-center py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                                <i class="fas fa-ticket-alt mr-2"></i>Book Now
+                            </a>
+                        </div>
+                    `
+                });
+
+                // Animate progress bar after card is added
+                setTimeout(() => {
+                    $card.find('.progress-bar').css('width', $card.find('.progress-bar').data('width'));
+                }, 400);
+
+                return $card;
+            }
+
+            function showLoadingSpinner() {
+                $('#loading-spinner').removeClass('hidden');
+                hideSearchResults();
+                hideNoResults();
+            }
+
+            function hideLoadingSpinner() {
+                $('#loading-spinner').addClass('hidden');
+            }
+
+            function showSearchResults() {
+                $('#search-results').removeClass('hidden');
+            }
+
+            function hideSearchResults() {
+                $('#search-results').addClass('hidden');
+            }
+
+            function showNoResults() {
+                $('#no-results').removeClass('hidden');
+                hideSearchResults();
+            }
+
+            function hideNoResults() {
+                $('#no-results').addClass('hidden');
+            }
+
+            function clearSearch() {
+                $('#event-search').val('');
+                $('#date-filter').val('upcoming');
+                $('#location-filter').val('');
+                $('#price-filter').val('all');
+                $('#sort-filter').val('date');
+                $('#clear-search').hide();
+                $('.quick-filter').removeClass('ring-4 ring-white ring-opacity-50 scale-105');
+                fetchEvents();
+                hideNoResults();
+                showToast('Search cleared! Showing all events.');
+            }
+
+            function showToast(message) {
+                $('#toast-message').text(message);
+                $('#toast-notification').removeClass('hidden');
+                
+                setTimeout(() => {
+                    hideToast();
+                }, 4000);
+            }
+
+            function hideToast() {
+                $('#toast-notification').fadeOut(300, function() {
+                    $(this).addClass('hidden').show();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

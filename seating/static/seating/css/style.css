@@ -1,0 +1,70 @@
+.seat-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    transform: translate(-50%, -50%);
+    transition: all 0.2s ease;
+    z-index: 10;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.seat-marker:hover {
+    transform: translate(-50%, -50%) scale(1.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.seat-map-placeholder {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+}
+
+#seat-map-container {
+    min-height: 400px;
+}
+
+.legend .badge {
+    font-size: 0.8em;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.btn {
+    border-radius: 8px;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .seat-marker {
+        width: 20px;
+        height: 20px;
+        font-size: 8px;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}

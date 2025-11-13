@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seat Map | SpotMe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#6366F1',
+                        accent: '#10B981'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .map-container {
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .map-container:active {
+            cursor: grabbing;
+        }
+
+        .map-image {
+            transition: transform 0.2s ease;
+            max-width: none;
+            display: block;
+            will-change: transform;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 20;
+        }
+
+        .search-dropdown {
+            max-height: 300px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .search-dropdown::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .search-dropdown::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+
+        .result-item {
+            transition: all 0.2s ease;
+        }
+
+        .result-item:hover {
+            transform: translateX(4px);
+        }
+
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .5;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <!-- Compact Navigation -->
+    <nav class="glass sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex items-center justify-between h-12">
+                <div class="flex items-center space-x-2">
+                    <div
+                        class="w-7 h-7 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-map-marker-alt text-white text-xs"></i>
+                    </div>
+                    <h1
+                        class="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        SpotMe
+                    </h1>
+                </div>
+                <button id="back-button"
+                    class="px-3 py-1.5 bg-white/60 hover:bg-white/80 text-gray-700 rounded-lg text-sm font-medium transition-all">
+                    <i class="fas fa-arrow-left mr-1"></i>Back
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <!-- Compact Event Header -->
+        <div class="glass rounded-2xl p-4 mb-4 slide-up">
+            <div class="flex items-center justify-between">
+                <div class="min-w-0 flex-1">
+                    <h2 class="text-xl font-bold text-gray-900 truncate mb-1">Summer Music Festival 2024</h2>
+                    <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-map-marker-alt text-blue-500 text-xs"></i>
+                            Madison Square Garden
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-calendar text-blue-500 text-xs"></i>
+                            Jul 15, 2024
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-clock text-blue-500 text-xs"></i>
+                            7:00 PM
+                        </span>
+                    </div>
+                </div>
+                <div class="ml-4 hidden sm:block">
+                    <div
+                        class="w-16 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-building text-white text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Search Panel -->
+            <div class="lg:col-span-1">
+                <div class="glass rounded-2xl p-4 fade-in">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div
+                            class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-search text-white text-sm"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900">Find Seat</h3>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative mb-3">
+                        <input type="text" id="attendee-search" placeholder="Search attendee name..."
+                            class="w-full pl-10 pr-10 py-3 bg-white/60 border border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-sm"
+                            autocomplete="off" aria-label="Search for attendee by name">
+                        <i
+                            class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <button id="clear-search"
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden transition-colors">
+                            <i class="fas fa-times text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Search Tips -->
+                    <div class="bg-blue-50 p-3 rounded-xl mb-3 text-xs text-blue-800">
+                        <div class="flex items-start gap-2">
+                            <i class="fas fa-info-circle flex-shrink-0 mt-0.5"></i>
+                            <div>
+                                <p class="font-semibold mb-1">Quick Tips:</p>
+                                <ul class="space-y-0.5">
+                                    <li>• Type at least 2 characters</li>
+                                    <li>• Use partial names for faster results</li>
+                                    <li>• Press Ctrl+K to focus search</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="search-loading" class="hidden text-center py-4">
+                        <div
+                            class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2">
+                        </div>
+                        <p class="text-sm text-gray-600">Searching...</p>
+                    </div>
+
+                    <!-- Search Results -->
+                    <div id="search-results" class="search-dropdown space-y-2 hidden"></div>
+
+                    <!-- Recent Searches -->
+                    <div id="recent-searches" class="mt-4 hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Recent Searches</p>
+                            <button id="clear-history"
+                                class="text-xs text-blue-600 hover:text-blue-700 font-medium">Clear</button>
+                        </div>
+                        <div id="recent-searches-list" class="space-y-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Panel -->
+            <div class="lg:col-span-2">
+                <div class="glass rounded-2xl overflow-hidden fade-in">
+                    <!-- Map Header -->
+                    <div class="flex items-center justify-between p-4 border-b border-white/30">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-building text-white text-sm"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-900">Venue Map</h3>
+                                <p class="text-xs text-gray-600">Drag to pan • Scroll to zoom</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-sm text-gray-600 font-medium">
+                                <span id="zoom-level">100%</span>
+                            </div>
+                            <button id="fullscreen-toggle"
+                                class="w-8 h-8 bg-white/60 hover:bg-white/80 text-gray-700 rounded-lg flex items-center justify-center transition-colors">
+                                <i class="fas fa-expand text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Map Container -->
+                    <div class="map-container h-64 sm:h-80 lg:h-96 bg-gradient-to-br from-gray-50 to-blue-50 relative"
+                        id="map-container">
+                        <div class="flex items-center justify-center h-full text-center text-gray-500">
+                            <div>
+                                <div
+                                    class="w-16 h-16 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fas fa-building text-2xl text-gray-400"></i>
+                                </div>
+                                <h4 class="text-lg font-semibold mb-2">Interactive Venue Floor Plan</h4>
+                                <p class="text-sm text-gray-400 max-w-sm mx-auto">
+                                    The venue map will be displayed here. Use zoom controls or mouse wheel to navigate.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Zoom Controls -->
+                        <div class="zoom-controls flex flex-col gap-1">
+                            <button id="zoom-in"
+                                class="w-8 h-8 bg-white/90 hover:bg-white text-gray-700 rounded-lg flex items-center justify-center shadow-md transition-all hover:scale-110"
+                                title="Zoom In">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                            <button id="zoom-out"
+                                class="w-8 h-8 bg-white/90 hover:bg-white text-gray-700 rounded-lg flex items-center justify-center shadow-md transition-all hover:scale-110"
+                                title="Zoom Out">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <button id="zoom-reset"
+                                class="w-8 h-8 bg-white/90 hover:bg-white text-gray-700 rounded-lg flex items-center justify-center shadow-md transition-all hover:scale-110"
+                                title="Reset View">
+                                <i class="fas fa-expand text-xs"></i>
+                            </button>
+                            <button id="zoom-fit"
+                                class="w-8 h-8 bg-white/90 hover:bg-white text-gray-700 rounded-lg flex items-center justify-center shadow-md transition-all hover:scale-110"
+                                title="Fit to Screen">
+                                <i class="fas fa-compress text-xs"></i>
+                            </button>
+                        </div>
+
+                        <!-- Mini Map -->
+                        <div id="mini-map"
+                            class="hidden absolute bottom-4 left-4 w-32 h-24 bg-white/90 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                            <div class="w-full h-full bg-gray-100"></div>
+                        </div>
+                    </div>
+
+                    <!-- Map Legend -->
+                    <div class="p-4 bg-gradient-to-r from-gray-50 to-blue-50 border-t border-white/30">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex items-center gap-4 text-xs">
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                    <span class="text-gray-600 font-medium">Available</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                                    <span class="text-gray-600 font-medium">Occupied</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                    <span class="text-gray-600 font-medium">Selected</span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-gray-600">
+                                <i class="fas fa-keyboard mr-1"></i>
+                                <span class="font-medium">Keyboard:</span> Ctrl+K to search, ESC to clear
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(function () {
+            // Configuration
+            const config = {
+                eventId: {{ event.id }
+        },
+            searchMinLength: 2,
+            searchDebounce: 300,
+            maxRecentSearches: 5,
+            zoom: {
+            min: 0.5,
+            max: 3,
+            step: 0.2,
+            default: 1
+        }
+            };
+
+        // State
+        const state = {
+            currentZoom: config.zoom.default,
+            currentX: 0,
+            currentY: 0,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            searchHistory: JSON.parse(localStorage.getItem('searchHistory') || '[]')
+        };
+
+        // jQuery element cache
+        const $elements = {
+            searchInput: $('#attendee-search'),
+            clearSearchBtn: $('#clear-search'),
+            searchResults: $('#search-results'),
+            searchLoading: $('#search-loading'),
+            recentSearches: $('#recent-searches'),
+            recentSearchesList: $('#recent-searches-list'),
+            clearHistoryBtn: $('#clear-history'),
+            mapContainer: $('#map-container'),
+            zoomLevel: $('#zoom-level'),
+            zoomInBtn: $('#zoom-in'),
+            zoomOutBtn: $('#zoom-out'),
+            zoomResetBtn: $('#zoom-reset'),
+            zoomFitBtn: $('#zoom-fit'),
+            fullscreenBtn: $('#fullscreen-toggle'),
+            backBtn: $('#back-button')
+        };
+
+        // Initialize
+        init();
+
+        function init() {
+            loadEventData();
+            setupEventListeners();
+            loadRecentSearches();
+            initializeZoomControls();
+            focusSearch();
+            showWelcomeToast();
+        }
+
+        function loadEventData() {
+            $.ajax({
+                url: `/api/events/${config.eventId}/map-data/`,
+                method: 'GET',
+                success: function (data) {
+                    if (data.success && data.event) {
+                        updateEventHeader(data.event);
+                        if (data.event.seat_map_url) {
+                            loadFloorPlanImage(data.event.seat_map_url);
+                        }
+                    }
+                },
+                error: function (xhr) {
+                    console.error('Failed to load event data:', xhr);
+                    showToast('Failed to load event data', 'error');
+                }
+            });
+        }
+
+        function updateEventHeader(event) {
+            // Update event details in header
+            $('h2').first().text(event.name);
+            $('.fa-map-marker-alt').next('span').text(event.venue);
+            $('.fa-calendar').next('span').text(event.date);
+            if (event.time) {
+                $('.fa-clock').next('span').text(event.time);
+            }
+        }
+
+        function loadFloorPlanImage(imageUrl) {
+            const $mapContainer = $elements.mapContainer;
+
+            // Show loading state
+            $mapContainer.html('<div class="flex items-center justify-center h-full"><div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>');
+
+            // Create image element
+            const $img = $('<img>')
+                .attr('src', imageUrl)
+                .addClass('map-image')
+                .css({
+                    'transform-origin': 'center center',
+                    'transform': `translate(-50%, -50%) scale(${state.currentZoom})`
+                })
+                .on('load', function () {
+                    $mapContainer.empty().append($img);
+
+                    // Add seat markers if available
+                    loadSeatMarkers();
+
+                    showToast('Floor plan loaded successfully', 'success');
+                })
+                .on('error', function () {
+                    $mapContainer.html(`
+                <div class="flex items-center justify-center h-full text-center text-gray-500">
+                    <div>
+                        <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+                        <h4 class="text-lg font-semibold mb-2">Failed to load floor plan</h4>
+                        <p class="text-sm">The venue map image could not be loaded.</p>
+                    </div>
+                </div>
+            `);
+                    showToast('Failed to load floor plan image', 'error');
+                });
+        }
+
+        function loadSeatMarkers() {
+            // Optional: Load and display seat markers on the floor plan
+            // This will overlay seat positions on the image
+            $.ajax({
+                url: `/api/events/${config.eventId}/statistics/`,
+                method: 'GET',
+                success: function (data) {
+                    if (data.success && data.sections_statistics) {
+                        // You can add seat markers here based on coordinates
+                        console.log('Seat data loaded:', data);
+                    }
+                }
+            });
+        }
+        function setupEventListeners() {
+            // Search functionality
+            $elements.searchInput.on('input', debounce(handleSearchInput, config.searchDebounce));
+            $elements.clearSearchBtn.on('click', clearSearch);
+            $elements.clearHistoryBtn.on('click', clearSearchHistory);
+            $elements.backBtn.on('click', () => window.history.back());
+
+            // Zoom controls
+            $elements.zoomInBtn.on('click', () => adjustZoom(config.zoom.step));
+            $elements.zoomOutBtn.on('click', () => adjustZoom(-config.zoom.step));
+            $elements.zoomResetBtn.on('click', resetZoom);
+            $elements.zoomFitBtn.on('click', fitToScreen);
+            $elements.fullscreenBtn.on('click', toggleFullscreen);
+
+            // Map interactions
+            $elements.mapContainer.on('wheel', handleMouseWheel);
+            $elements.mapContainer.on('mousedown touchstart', startDrag);
+            $(document).on('mousemove touchmove', handleDrag);
+            $(document).on('mouseup touchend', endDrag);
+
+            // Keyboard shortcuts
+            $(document).on('keydown', handleKeyboard);
+
+            // Result item clicks
+            $(document).on('click', '.result-item', handleResultClick);
+            $(document).on('click', '.recent-search-item', handleRecentSearchClick);
+        }
+
+        function handleSearchInput() {
+            const query = $elements.searchInput.val().trim();
+
+            $elements.clearSearchBtn.toggle(query.length > 0);
+
+            if (query.length === 0) {
+                hideSearch();
+                loadRecentSearches();
+                return;
+            }
+
+            if (query.length < config.searchMinLength) {
+                return;
+            }
+
+            performSearch(query);
+        }
+
+        function performSearch(query) {
+            showLoading();
+
+            $.ajax({
+                url: '/api/search/attendees/',
+                method: 'GET',
+                data: {
+                    q: query,
+                    event_id: config.eventId,
+                    limit: 10
+                },
+                success: function (data) {
+                    hideLoading();
+                    if (data.success) {
+                        displayResults(data.results, query);
+                        if (data.results.length > 0) {
+                            addToSearchHistory(query);
+                        }
+                    }
+                },
+                error: function (xhr) {
+                    hideLoading();
+                    console.error('Search failed:', xhr);
+                    showToast('Search failed. Please try again.', 'error');
+                }
+            });
+        }
+        function generateMockResults(query) {
+            const allAttendees = [
+                { name: 'John Smith', section: 'A', row: '12', seat: '5', ticket_number: 'TKT-001234' },
+                { name: 'Jane Doe', section: 'B', row: '8', seat: '12', ticket_number: 'TKT-001235' },
+                { name: 'Mike Johnson', section: 'C', row: '15', seat: '3', ticket_number: 'TKT-001236' },
+                { name: 'Sarah Williams', section: 'A', row: '10', seat: '8', ticket_number: 'TKT-001237' },
+                { name: 'David Brown', section: 'D', row: '5', seat: '15', ticket_number: 'TKT-001238' }
+            ];
+
+            return allAttendees
+                .filter(att => att.name.toLowerCase().includes(query.toLowerCase()))
+                .map(att => ({
+                    ...att,
+                    seat_info: `Row ${att.row}, Seat ${att.seat}`
+                }));
+        }
+
+        function displayResults(results, query) {
+            if (results.length === 0) {
+                $elements.searchResults.html(createNoResultsHTML(query)).removeClass('hidden');
+                return;
+            }
+
+            const resultsHTML = `
+                    <div class="mb-3 pb-2 border-b border-gray-200/50">
+                        <p class="text-xs text-gray-500 font-medium">Found ${results.length} result${results.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    ${results.map((attendee, index) => createResultItemHTML(attendee, index)).join('')}
+                `;
+
+            $elements.searchResults.html(resultsHTML).removeClass('hidden');
+            $elements.recentSearches.addClass('hidden');
+        }
+
+        function createResultItemHTML(attendee, index) {
+            return `
+                    <div class="p-3 bg-white/60 hover:bg-white/80 rounded-lg cursor-pointer transition-all result-item slide-up" 
+                         data-attendee='${JSON.stringify(attendee)}'
+                         style="animation-delay: ${index * 50}ms">
+                        <div class="flex items-center justify-between">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <div class="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-md flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-user text-white text-xs"></i>
+                                    </div>
+                                    <h4 class="font-medium text-gray-900 truncate text-sm">${attendee.name}</h4>
+                                </div>
+                                <div class="text-xs text-gray-600 space-y-0.5 ml-8">
+                                    <p><i class="fas fa-layer-group w-3"></i> Section ${attendee.section} • ${attendee.seat_info}</p>
+                                    <p><i class="fas fa-ticket-alt w-3"></i> ${attendee.ticket_number}</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400 text-xs ml-2"></i>
+                        </div>
+                    </div>
+                `;
+        }
+
+        function createNoResultsHTML(query) {
+            return `
+                    <div class="text-center py-8 text-gray-500">
+                        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-search text-xl opacity-50"></i>
+                        </div>
+                        <p class="text-sm font-medium mb-1">No attendees found</p>
+                        <p class="text-xs text-gray-400">Try checking spelling or use partial names</p>
+                    </div>
+                `;
+        }
+
+        function handleResultClick() {
+            const attendee = JSON.parse($(this).attr('data-attendee'));
+            showSeatInfo(attendee);
+        }
+
+        function showSeatInfo(attendee) {
+            Swal.fire({
+                title: `<div class="flex items-center gap-2 justify-center"><i class="fas fa-chair text-blue-500"></i><span>Seat Information</span></div>`,
+                html: createSeatInfoHTML(attendee),
+                icon: null,
+                confirmButtonText: '<i class="fas fa-check mr-2"></i>Got it!',
+                confirmButtonColor: '#3B82F6',
+                showCancelButton: true,
+                cancelButtonText: '<i class="fas fa-directions mr-2"></i>Show on Map',
+                cancelButtonColor: '#10B981',
+                customClass: {
+                    popup: 'rounded-2xl',
+                    confirmButton: 'rounded-lg',
+                    cancelButton: 'rounded-lg'
+                },
+                width: '90%',
+                maxWidth: '400px'
+            }).then((result) => {
+                if (result.isDismiss && result.dismiss === Swal.DismissReason.cancel) {
+                    showToast(`Highlighting ${attendee.name}'s seat on the map`, 'info');
+                }
+            });
+        }
+
+        function createSeatInfoHTML(attendee) {
+            return `
+                    <div class="text-left space-y-4">
+                        <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-user text-white"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-900">${attendee.name}</p>
+                                    <p class="text-sm text-gray-600">Ticket: ${attendee.ticket_number}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-gray-50 p-3 rounded-xl text-center">
+                                <i class="fas fa-layer-group text-gray-600 mb-1"></i>
+                                <p class="text-xs text-gray-600">Section</p>
+                                <p class="font-bold text-sm">${attendee.section}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-xl text-center">
+                                <i class="fas fa-grip-lines text-gray-600 mb-1"></i>
+                                <p class="text-xs text-gray-600">Row</p>
+                                <p class="font-bold text-sm">${attendee.row}</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-xl text-center">
+                                <i class="fas fa-chair text-gray-600 mb-1"></i>
+                                <p class="text-xs text-gray-600">Seat</p>
+                                <p class="font-bold text-sm">${attendee.seat}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-green-50 p-4 rounded-xl border border-green-200/50">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-info-circle text-green-600"></i>
+                                <span class="font-medium text-green-800">Location Tips</span>
+                            </div>
+                            <ul class="text-sm text-green-700 space-y-1">
+                                <li>• Look for section markers on the venue map</li>
+                                <li>• Row numbers increase away from the stage/field</li>
+                                <li>• Seat numbers typically increase left to right</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+        }
+
+        function addToSearchHistory(query) {
+            state.searchHistory = state.searchHistory.filter(item => item.toLowerCase() !== query.toLowerCase());
+            state.searchHistory.unshift(query);
+            state.searchHistory = state.searchHistory.slice(0, config.maxRecentSearches);
+            localStorage.setItem('searchHistory', JSON.stringify(state.searchHistory));
+        }
+
+        function loadRecentSearches() {
+            if (state.searchHistory.length === 0) {
+                $elements.recentSearches.addClass('hidden');
+                return;
+            }
+
+            const historyHTML = state.searchHistory.map(query => `
+                    <div class="recent-search-item p-2 bg-white/40 hover:bg-white/60 rounded-lg cursor-pointer transition-all text-sm flex items-center justify-between group"
+                         data-query="${query}">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-history text-gray-400 text-xs"></i>
+                            <span class="text-gray-700">${query}</span>
+                        </div>
+                        <i class="fas fa-arrow-right text-gray-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                    </div>
+                `).join('');
+
+            $elements.recentSearchesList.html(historyHTML);
+            $elements.recentSearches.removeClass('hidden');
+        }
+
+        function handleRecentSearchClick() {
+            const query = $(this).data('query');
+            $elements.searchInput.val(query);
+            performSearch(query);
+        }
+
+        function clearSearchHistory() {
+            state.searchHistory = [];
+            localStorage.removeItem('searchHistory');
+            $elements.recentSearches.addClass('hidden');
+            showToast('Search history cleared', 'success');
+        }
+
+        function clearSearch() {
+            $elements.searchInput.val('').focus();
+            hideSearch();
+            loadRecentSearches();
+        }
+
+        function hideSearch() {
+            $elements.clearSearchBtn.addClass('hidden');
+            $elements.searchResults.addClass('hidden').empty();
+        }
+
+        function showLoading() {
+            $elements.searchLoading.removeClass('hidden');
+            $elements.searchResults.addClass('hidden');
+            $elements.recentSearches.addClass('hidden');
+        }
+
+        function hideLoading() {
+            $elements.searchLoading.addClass('hidden');
+        }
+
+        function initializeZoomControls() {
+            updateZoomButtons();
+        }
+
+        function adjustZoom(delta) {
+            const newZoom = Math.max(config.zoom.min, Math.min(config.zoom.max, state.currentZoom + delta));
+            if (newZoom !== state.currentZoom) {
+                state.currentZoom = newZoom;
+                updateZoomDisplay();
+                updateZoomButtons();
+                applyTransform();  // ADD THIS
+            }
+        }
+
+        function applyTransform() {
+            const $img = $elements.mapContainer.find('.map-image');
+            if ($img.length) {
+                $img.css('transform', `translate(calc(-50% + ${state.currentX}px), calc(-50% + ${state.currentY}px)) scale(${state.currentZoom})`);
+            }
+        }
+
+        function resetZoom() {
+            state.currentZoom = config.zoom.default;
+            state.currentX = 0;
+            state.currentY = 0;
+            updateZoomDisplay();
+            updateZoomButtons();
+            showToast('View reset to default', 'info');
+        }
+
+        function fitToScreen() {
+            state.currentZoom = 1;
+            state.currentX = 0;
+            state.currentY = 0;
+            updateZoomDisplay();
+            updateZoomButtons();
+            showToast('Map fitted to screen', 'info');
+        }
+
+        function updateZoomDisplay() {
+            $elements.zoomLevel.text(Math.round(state.currentZoom * 100) + '%');
+        }
+
+        function updateZoomButtons() {
+            $elements.zoomInBtn.prop('disabled', state.currentZoom >= config.zoom.max)
+                .toggleClass('opacity-50 cursor-not-allowed', state.currentZoom >= config.zoom.max);
+
+            $elements.zoomOutBtn.prop('disabled', state.currentZoom <= config.zoom.min)
+                .toggleClass('opacity-50 cursor-not-allowed', state.currentZoom <= config.zoom.min);
+
+            const isDefault = state.currentZoom === config.zoom.default && state.currentX === 0 && state.currentY === 0;
+            $elements.zoomResetBtn.prop('disabled', isDefault)
+                .toggleClass('opacity-50 cursor-not-allowed', isDefault);
+        }
+
+        function handleMouseWheel(e) {
+            e.preventDefault();
+
+            const delta = e.originalEvent.deltaY > 0 ? -config.zoom.step : config.zoom.step;
+            adjustZoom(delta);
+        }
+
+        function startDrag(e) {
+            if (state.currentZoom <= 1) return;
+
+            state.isDragging = true;
+            const event = e.type === 'touchstart' ? e.originalEvent.touches[0] : e;
+            state.lastX = event.clientX;
+            state.lastY = event.clientY;
+
+            $elements.mapContainer.css('cursor', 'grabbing');
+            e.preventDefault();
+        }
+
+        function handleDrag(e) {
+            if (!state.isDragging) return;
+
+            const event = e.type === 'touchmove' ? e.originalEvent.touches[0] : e;
+            const deltaX = event.clientX - state.lastX;
+            const deltaY = event.clientY - state.lastY;
+
+            state.currentX += deltaX;
+            state.currentY += deltaY;
+
+            state.lastX = event.clientX;
+            state.lastY = event.clientY;
+
+            e.preventDefault();
+        }
+
+        function endDrag() {
+            if (state.isDragging) {
+                state.isDragging = false;
+                $elements.mapContainer.css('cursor', state.currentZoom > 1 ? 'grab' : 'default');
+            }
+        }
+
+        function toggleFullscreen() {
+            const container = $elements.mapContainer[0];
+
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().then(() => {
+                    $elements.fullscreenBtn.find('i').removeClass('fa-expand').addClass('fa-compress');
+                    showToast('Entered fullscreen mode', 'info');
+                }).catch(err => {
+                    showToast('Could not enter fullscreen', 'error');
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    $elements.fullscreenBtn.find('i').removeClass('fa-compress').addClass('fa-expand');
+                    showToast('Exited fullscreen mode', 'info');
+                });
+            }
+        }
+
+        function handleKeyboard(e) {
+            // Ctrl/Cmd + K: Focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                focusSearch();
+            }
+
+            // Escape: Clear search
+            if (e.key === 'Escape') {
+                if ($elements.searchInput.val()) {
+                    clearSearch();
+                }
+            }
+
+            // Plus/Minus keys for zoom
+            if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                adjustZoom(config.zoom.step);
+            }
+            if (e.key === '-' || e.key === '_') {
+                e.preventDefault();
+                adjustZoom(-config.zoom.step);
+            }
+
+            // 0 key to reset zoom
+            if (e.key === '0') {
+                e.preventDefault();
+                resetZoom();
+            }
+        }
+
+        function focusSearch() {
+            $elements.searchInput.focus();
+        }
+
+        function showWelcomeToast() {
+            setTimeout(() => {
+                showToast('Welcome! Use Ctrl+K to quickly search for attendees', 'info');
+            }, 500);
+        }
+
+        function showToast(message, type = 'success') {
+            const icons = {
+                success: 'fa-check-circle text-green-500',
+                error: 'fa-exclamation-circle text-red-500',
+                info: 'fa-info-circle text-blue-500',
+                warning: 'fa-exclamation-triangle text-yellow-500'
+            };
+
+            const icon = icons[type] || icons.info;
+
+            const $toast = $(`
+                    <div class="fixed top-6 right-6 z-50 max-w-md animate-slide-in">
+                        <div class="glass border-l-4 ${type === 'error' ? 'border-red-500' : type === 'warning' ? 'border-yellow-500' : type === 'info' ? 'border-blue-500' : 'border-green-500'} rounded-2xl shadow-2xl p-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas ${icon} text-xl"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-semibold text-gray-800">${message}</p>
+                                </div>
+                                <button class="ml-3 text-gray-400 hover:text-gray-600 transition-colors close-toast">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+
+            $('body').append($toast);
+
+            $toast.find('.close-toast').on('click', function () {
+                $toast.fadeOut(300, function () {
+                    $(this).remove();
+                });
+            });
+
+            setTimeout(() => {
+                $toast.fadeOut(300, function () {
+                    $(this).remove();
+                });
+            }, 4000);
+        }
+
+        // Utility function for debouncing
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Handle fullscreen change
+        $(document).on('fullscreenchange', function () {
+            if (!document.fullscreenElement) {
+                $elements.fullscreenBtn.find('i').removeClass('fa-compress').addClass('fa-expand');
+            }
+        });
+
+        // Auto-focus search on page load
+        setTimeout(() => {
+            focusSearch();
+        }, 800);
+
+        // Smooth scroll behavior
+        $('html').css('scroll-behavior', 'smooth');
+
+        // Show loading state for images
+        $elements.mapContainer.find('img').on('load', function () {
+            $(this).addClass('fade-in');
+        });
+
+        // Prevent context menu on map
+        $elements.mapContainer.on('contextmenu', function (e) {
+            e.preventDefault();
+        });
+
+        // Touch device optimizations
+        if ('ontouchstart' in window) {
+            $elements.mapContainer.css('touch-action', 'none');
+        }
+
+        // Window resize handler
+        let resizeTimeout;
+        $(window).on('resize', function () {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (state.currentZoom !== config.zoom.default) {
+                    // Adjust zoom on resize to maintain relative position
+                    updateZoomDisplay();
+                }
+            }, 250);
+        });
+
+        // Visibility change handler (pause animations when tab not visible)
+        $(document).on('visibilitychange', function () {
+            if (document.hidden) {
+                // Pause any animations
+                $elements.searchLoading.find('.animate-spin').css('animation-play-state', 'paused');
+            } else {
+                // Resume animations
+                $elements.searchLoading.find('.animate-spin').css('animation-play-state', 'running');
+            }
+        });
+
+        // Performance monitoring (optional)
+        if (window.performance && window.performance.now) {
+            const loadTime = window.performance.now();
+            console.log(`Page loaded in ${loadTime.toFixed(2)}ms`);
+        }
+
+        // Accessibility improvements
+        $elements.searchInput.attr({
+            'aria-label': 'Search for attendee',
+            'aria-describedby': 'search-tips'
+        });
+
+        // Add ARIA live region for search results
+        $elements.searchResults.attr('aria-live', 'polite');
+
+        // Keyboard navigation for results
+        $(document).on('keydown', '.result-item', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                $(this).click();
+            }
+        });
+
+        // Focus trap for modal
+        $(document).on('keydown', '.swal2-container', function (e) {
+            if (e.key === 'Tab') {
+                // Implement focus trapping logic here if needed
+            }
+        });
+
+        // Add ripple effect to buttons
+        $('.tag-pill, button').on('click', function (e) {
+            const $ripple = $('<span class="ripple"></span>');
+            $(this).append($ripple);
+
+            setTimeout(() => {
+                $ripple.remove();
+            }, 600);
+        });
+
+        // Lazy loading for heavy content
+        if ('IntersectionObserver' in window) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // Load content when visible
+                        $(entry.target).addClass('visible');
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+
+            // Observe elements that should lazy load
+            $('.lazy-load').each(function () {
+                observer.observe(this);
+            });
+        }
+
+        // Network status monitoring
+        window.addEventListener('online', () => {
+            showToast('Connection restored', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            showToast('No internet connection', 'warning');
+        });
+
+        // Prevent double-tap zoom on mobile
+        let lastTouchEnd = 0;
+        $(document).on('touchend', function (e) {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        });
+
+        // Add smooth transitions to dynamic content
+        const style = document.createElement('style');
+        style.textContent = `
+                .ripple {
+                    position: absolute;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.6);
+                    width: 100px;
+                    height: 100px;
+                    margin-top: -50px;
+                    margin-left: -50px;
+                    animation: ripple 0.6s;
+                    opacity: 0;
+                }
+                
+                @keyframes ripple {
+                    from {
+                        opacity: 1;
+                        transform: scale(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: scale(2);
+                    }
+                }
+                
+                .lazy-load {
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: opacity 0.5s ease, transform 0.5s ease;
+                }
+                
+                .lazy-load.visible {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            `;
+        document.head.appendChild(style);
+
+        console.log('🎯 SpotMe Seat Finder initialized successfully!');
+        console.log('📍 Features: Advanced search, zoom controls, keyboard shortcuts, and more');
+        console.log('⌨️  Shortcuts: Ctrl+K (search), ESC (clear), +/- (zoom), 0 (reset)');
+        });
+    </script>
+</body>
+
+</html>
