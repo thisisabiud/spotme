@@ -11,7 +11,7 @@ urlpatterns = [
     
     # Search APIs
     path('api/search/events/', views.search_events, name='search_events'),
-    path('api/search/attendees/', views.search_attendee, name='search_attendee'),
+    path('api/search/attendee/', views.search_attendee, name='search_attendee'),
     
     # Event APIs
     path('api/events/<int:event_id>/', views.EventDetailAPI.as_view(), name='event_detail_api'),

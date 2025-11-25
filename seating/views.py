@@ -162,7 +162,10 @@ def search_attendee(request):
     try:
         query = request.GET.get('q', '').strip()
         event_id = request.GET.get('event_id')
-        limit = min(int(request.GET.get('limit', 10)), 50)  # Max 50 results
+        limit = min(int(request.GET.get('limit', 10)), 50)
+        
+        # Add logging for debugging
+        logger.info(f"Search query: {query}, event_id: {event_id}")
         
         if not query or len(query) < 2:
             return JsonResponse({
@@ -171,6 +174,8 @@ def search_attendee(request):
                 'count': 0,
                 'success': True
             })
+        
+        
         
         # Optimized query with select_related
         attendees_query = Attendee.objects.select_related(
@@ -201,6 +206,8 @@ def search_attendee(request):
                 'name': attendee.name,
                 'ticket_number': attendee.ticket_number,
                 'seat_info': f"Row {attendee.seat.row}, Seat {attendee.seat.seat_number}",
+                'row': attendee.seat.row,
+                'seat': attendee.seat.seat_number,
                 'section': attendee.seat.section.name,
                 'event': attendee.seat.section.event.name,
                 'event_id': attendee.seat.section.event.id,
@@ -242,7 +249,6 @@ def seat_map(request, event_id):
                 queryset=Seat.objects.select_related('attendee')
             )
         )
-        
         # Get statistics
         total_seats = Seat.objects.filter(section__event=event, is_available=True).count()
         occupied_seats = Attendee.objects.filter(seat__section__event=event).count()
