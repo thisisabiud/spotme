@@ -9,6 +9,7 @@ class SeatInline(admin.TabularInline):
     model = Seat
     extra = 1
 
+
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
     list_display = ['name', 'venue', 'date', 'time', 'is_active', 'created_at', 'updated_at']
