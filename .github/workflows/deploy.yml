@@ -12,60 +12,70 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up ssh-agent
+      - name: Set up SSH Agent
         uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Add SSH to known hosts
+      - name: Add SSH to Known Hosts
         run: ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-      - name: Create deployment script
+      - name: Create Deployment Script
         run: |
           cat > deploy.sh << 'EOL'
           #!/bin/bash
           set -e
 
-          mkdir -p /home/spotme
+          echo "Starting deployment..."
 
-          # Configure git to trust this directory
+          # Setup project directory
+          mkdir -p /home/spotme
           git config --global --add safe.directory /home/spotme
 
+          # Clone or pull repository
           if [ -d /home/spotme/.git ]; then
-            cd  /home/spotme
+            echo "Repository exists, pulling latest changes..."
+            cd /home/spotme
             git pull
           else
-            git clone git@github.com:${{ github.repository }}.git /home/spotme
+            echo "Cloning repository..."
+            git clone git@github.com:REPO_PLACEHOLDER /home/spotme
             cd /home/spotme
           fi
 
+          # Set permissions
           chmod 755 /home/spotme
           chown -R www-data:www-data /home/spotme
 
-          #create and activate virtual environment
+          # Setup virtual environment
           if [ ! -d "venv" ]; then
+            echo "Creating virtual environment..."
             python3 -m venv venv
           fi
+          
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install gunicorn
 
-          # create .env file
-          cat > .env << EOF
+          # Create .env file
+          echo "Creating .env file..."
+          cat > .env << ENVEOF
           ENVIRONMENT=production
           ALLOWED_HOSTS=${SERVER_NAME}
           DEBUG=False
-          EOF
+          ENVEOF
 
-          #apply database migrations
+          # Run Django management commands
+          echo "Running migrations..."
           python manage.py makemigrations
           python manage.py migrate
 
-          #collect static files
+          echo "Collecting static files..."
           python manage.py collectstatic --noinput
 
-          # create django superuser if not exists
+          # Create Django superuser
+          echo "Creating superuser..."
           cat > create_user.py << 'EOPY'
           import os
           os.environ.setdefault('ENVIRONMENT', 'production')
@@ -73,15 +83,17 @@ jobs:
           import django
           django.setup()
           from django.contrib.auth import get_user_model
+
           User = get_user_model()
           username = os.getenv('DJANGO_SUPERUSER_USERNAME')
           email = os.getenv('DJANGO_SUPERUSER_EMAIL')
           password = os.getenv('DJANGO_SUPERUSER_PASSWORD')
+
           if not User.objects.filter(username=username).exists():
               User.objects.create_superuser(username=username, email=email, password=password)
-              print(f"Superuser {username} created.")
+              print(f"Superuser '{username}' created successfully.")
           else:
-              print(f"Superuser {username} already exists.")
+              print(f"Superuser '{username}' already exists.")
           EOPY
 
           DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME}" \
@@ -90,14 +102,14 @@ jobs:
           python create_user.py
           rm create_user.py
 
-          # CREATE log directory for gunicorn
+          # Setup Gunicorn
+          echo "Setting up Gunicorn..."
           sudo mkdir -p /var/log/gunicorn
           sudo chown -R www-data:www-data /var/log/gunicorn
 
-          # create systemd service file for gunicorn
-          cat > gunicorn.service << 'EOT'
+          sudo tee /etc/systemd/system/spotme_gunicorn.service > /dev/null << 'SVCEOF'
           [Unit]
-          Description=gunicorn daemon for Spotme
+          Description=Gunicorn daemon for Spotme
           After=network.target
 
           [Service]
@@ -120,59 +132,72 @@ jobs:
 
           [Install]
           WantedBy=multi-user.target
-          EOT
+          SVCEOF
 
-          sudo mv gunicorn.service /etc/systemd/system/spotme_gunicorn.service
           sudo systemctl daemon-reload
           sudo systemctl restart spotme_gunicorn || sudo systemctl start spotme_gunicorn
           sudo systemctl enable spotme_gunicorn
 
-          # wait for a few seconds to ensure gunicorn starts
+          echo "Waiting for Gunicorn to start..."
           sleep 5
 
-          # install ssl certificate using certbot
+          # Setup Nginx and SSL
           if [ ! -d "/etc/letsencrypt/live/${SERVER_NAME}" ]; then
-            echo "Installing Certbot and obtaining SSL certificate..."
+            echo "Setting up Nginx and SSL certificate..."
             sudo apt-get update
             sudo apt-get install -y certbot python3-certbot-nginx
-          
-            # create temporary nginx config for certbot
-            cat > spotme_nginx << EOT
+
+            # Remove old config if exists
+            sudo rm -f /etc/nginx/sites-enabled/spotme
+            sudo rm -f /etc/nginx/sites-available/spotme
+
+            # Create Nginx configuration
+            sudo tee /etc/nginx/sites-available/spotme > /dev/null << 'NGXEOF'
           server {
               listen 80;
-              server_name ${SERVER_NAME};
+              server_name SERVER_NAME_PLACEHOLDER;
+
               location / {
                   proxy_pass http://unix:/home/spotme/spotme.sock;
-                  proxy_set_header Host \$host;
-                  proxy_set_header X-Real-IP \$remote_addr;
-                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto \$scheme;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+
+              location /static/ {
+                  alias /home/spotme/staticfiles/;
+              }
+
+              location /media/ {
+                  alias /home/spotme/media/;
+              }
           }
-          
-          location /static/ {
-              alias /home/spotme/staticfiles/;
-          }
-          
-          location /media/ {
-              alias /home/spotme/media/;
-          }
-          EOT
-            sudo mv spotme_nginx /etc/nginx/sites-available/spotme
-            sudo ln -s /etc/nginx/sites-available/spotme /etc/nginx/sites-enabled
+          NGXEOF
+
+            # Replace placeholder with actual server name
+            sudo sed -i "s/SERVER_NAME_PLACEHOLDER/${SERVER_NAME}/g" /etc/nginx/sites-available/spotme
+
+            # Enable site
+            sudo ln -sf /etc/nginx/sites-available/spotme /etc/nginx/sites-enabled/
+
+            # Test and reload Nginx
             sudo nginx -t && sudo systemctl reload nginx
-          
-            # obtain ssl certificate
+
+            # Obtain SSL certificate
+            echo "Obtaining SSL certificate..."
             sudo certbot --nginx -d ${SERVER_NAME} --non-interactive --agree-tos -m ${ADMIN_EMAIL} --redirect
           else
-            echo "SSL certificate already exists. Skipping Certbot installation."
+            echo "SSL certificate already exists."
+            # Still reload nginx to pick up any config changes
+            sudo nginx -t && sudo systemctl reload nginx
           fi
 
-          # verify nginx configuration and restart nginx
-          echo "Verifying Nginx configuration..."
-          sudo nginx -t && sudo systemctl restart nginx
-
-          echo "Deployment completed successfully."
+          echo "Deployment completed successfully!"
           EOL
+
+          # Replace repository placeholder
+          sed -i "s|REPO_PLACEHOLDER|${{ github.repository }}|g" deploy.sh
           chmod +x deploy.sh
 
       - name: Deploy to Server
@@ -183,11 +208,20 @@ jobs:
           SERVER_NAME: ${{ secrets.SERVER_NAME }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: |
-          # copy deployment script to server and execute it
+          echo "Copying deployment script to server..."
           scp deploy.sh root@${{ secrets.HOST }}:/tmp/deploy.sh 
 
-          # execute deployment script on server with env variables
-          ssh root@${{ secrets.HOST }} "SERVER_NAME='$SERVER_NAME' ADMIN_EMAIL='$ADMIN_EMAIL' DJANGO_SUPERUSER_USERNAME='$DJANGO_SUPERUSER_USERNAME' DJANGO_SUPERUSER_EMAIL='$DJANGO_SUPERUSER_EMAIL' DJANGO_SUPERUSER_PASSWORD='$DJANGO_SUPERUSER_PASSWORD' bash /tmp/deploy.sh"
+          echo "Executing deployment script on server..."
+          ssh root@${{ secrets.HOST }} << 'ENDSSH'
+          export SERVER_NAME="${SERVER_NAME}"
+          export ADMIN_EMAIL="${ADMIN_EMAIL}"
+          export DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME}"
+          export DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL}"
+          export DJANGO_SUPERUSER_PASSWORD="${DJANGO_SUPERUSER_PASSWORD}"
+          bash /tmp/deploy.sh
+          ENDSSH
 
-          #clean up
+          echo "Cleaning up deployment script..."
           ssh root@${{ secrets.HOST }} "rm /tmp/deploy.sh"
+
+          echo "Deployment workflow completed!"
