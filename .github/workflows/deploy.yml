@@ -106,7 +106,8 @@ jobs:
           WorkingDirectory=/home/spotme
           Environment="PATH=/home/spotme/venv/bin"
           Environment="PYTHONPATH=/home/spotme"
-          Environment="DJANGO_SETTINGS_MODULE=spotme.settings.production"
+          Environment="ENVIRONMENT=production"
+          Environment="DJANGO_SETTINGS_MODULE=spotme.settings"
           ExecStart=/home/spotme/venv/bin/gunicorn \
                     --access-logfile /var/log/gunicorn/spotme_access.log \
                     --error-logfile /var/log/gunicorn/spotme_error.log \
@@ -186,7 +187,7 @@ jobs:
           scp deploy.sh root@${{ secrets.HOST }}:/tmp/deploy.sh 
 
           # execute deployment script on server with env variables
-          ssh root@{{ secrets.HOST }} "SERVER_NAME='$SERVER_NAME' ADMIN_EMAIL='$ADMIN_EMAIL' DJANGO_SUPERUSER_USERNAME='$DJANGO_SUPERUSER_USERNAME' DJANGO_SUPERUSER_EMAIL='$DJANGO_SUPERUSER_EMAIL' DJANGO_SUPERUSER_PASSWORD='$DJANGO_SUPERUSER_PASSWORD' bash /tmp/deploy.sh"
+          ssh root@${{ secrets.HOST }} "SERVER_NAME='$SERVER_NAME' ADMIN_EMAIL='$ADMIN_EMAIL' DJANGO_SUPERUSER_USERNAME='$DJANGO_SUPERUSER_USERNAME' DJANGO_SUPERUSER_EMAIL='$DJANGO_SUPERUSER_EMAIL' DJANGO_SUPERUSER_PASSWORD='$DJANGO_SUPERUSER_PASSWORD' bash /tmp/deploy.sh"
 
           #clean up
           ssh root@${{ secrets.HOST }} "rm /tmp/deploy.sh"
