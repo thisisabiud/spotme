@@ -36,7 +36,15 @@ jobs:
           if [ -d /home/spotme/.git ]; then
             echo "Repository exists, pulling latest changes..."
             cd /home/spotme
+            
+            # Stash any local changes (like db.sqlite3)
+            echo "Stashing local changes..."
+            git stash
+            
+            # Pull latest changes
             git pull
+            
+            # Don't pop the stash - we want to keep server's database
           else
             echo "Cloning repository..."
             git clone git@github.com:REPO_PLACEHOLDER /home/spotme
