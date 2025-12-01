@@ -60,8 +60,14 @@ jobs:
 
           # Set permissions - do this AFTER creating directories
           echo "Setting permissions..."
-          chmod 755 /home/spotme
+          chmod 775 /home/spotme
           chown -R www-data:www-data /home/spotme
+          
+          # Set database permissions if it exists
+          if [ -f /home/spotme/db.sqlite3 ]; then
+            chmod 664 /home/spotme/db.sqlite3
+          fi
+          
           chmod -R 775 /home/spotme/media
           chmod -R 775 /home/spotme/staticfiles
 
@@ -98,6 +104,12 @@ jobs:
           sudo chown -R www-data:www-data /home/spotme/staticfiles
           sudo chmod -R 775 /home/spotme/media
           sudo chmod -R 775 /home/spotme/staticfiles
+          
+          # Ensure database permissions
+          if [ -f /home/spotme/db.sqlite3 ]; then
+            sudo chown www-data:www-data /home/spotme/db.sqlite3
+            sudo chmod 664 /home/spotme/db.sqlite3
+          fi
 
           # Create Django superuser
           echo "Creating superuser..."
@@ -226,6 +238,14 @@ jobs:
           echo "Final permission verification..."
           sudo chown -R www-data:www-data /home/spotme/media
           sudo chmod -R 775 /home/spotme/media
+          
+          # Final database permission check
+          if [ -f /home/spotme/db.sqlite3 ]; then
+            sudo chown www-data:www-data /home/spotme/db.sqlite3
+            sudo chmod 664 /home/spotme/db.sqlite3
+          fi
+          
+          sudo chmod 775 /home/spotme
 
           echo "Deployment completed successfully!"
           EOL
