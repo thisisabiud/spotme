@@ -43,9 +43,19 @@ jobs:
             cd /home/spotme
           fi
 
-          # Set permissions
+          # Create directories early
+          echo "Creating application directories..."
+          mkdir -p /home/spotme/static
+          mkdir -p /home/spotme/staticfiles
+          mkdir -p /home/spotme/media
+          mkdir -p /home/spotme/media/seat_maps
+
+          # Set permissions - do this AFTER creating directories
+          echo "Setting permissions..."
           chmod 755 /home/spotme
           chown -R www-data:www-data /home/spotme
+          chmod -R 775 /home/spotme/media
+          chmod -R 775 /home/spotme/staticfiles
 
           # Setup virtual environment
           if [ ! -d "venv" ]; then
@@ -66,11 +76,6 @@ jobs:
           DEBUG=False
           ENVEOF
 
-          # Create static directory if it doesn't exist
-          mkdir -p /home/spotme/static
-          mkdir -p /home/spotme/staticfiles
-          mkdir -p /home/spotme/media
-
           # Run Django management commands
           echo "Running migrations..."
           python manage.py makemigrations
@@ -78,6 +83,13 @@ jobs:
 
           echo "Collecting static files..."
           python manage.py collectstatic --noinput
+
+          # Ensure permissions again after Django commands
+          echo "Ensuring correct permissions after Django setup..."
+          sudo chown -R www-data:www-data /home/spotme/media
+          sudo chown -R www-data:www-data /home/spotme/staticfiles
+          sudo chmod -R 775 /home/spotme/media
+          sudo chmod -R 775 /home/spotme/staticfiles
 
           # Create Django superuser
           echo "Creating superuser..."
@@ -201,6 +213,11 @@ jobs:
             # Still reload nginx to pick up any config changes
             sudo nginx -t && sudo systemctl reload nginx
           fi
+
+          # Final permission check
+          echo "Final permission verification..."
+          sudo chown -R www-data:www-data /home/spotme/media
+          sudo chmod -R 775 /home/spotme/media
 
           echo "Deployment completed successfully!"
           EOL
