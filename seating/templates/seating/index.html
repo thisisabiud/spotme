@@ -678,19 +678,26 @@
             }
 
             function showToast(message) {
-                $('#toast-message').text(message);
-                $('#toast-notification').removeClass('hidden');
-                
-                setTimeout(() => {
-                    hideToast();
-                }, 4000);
-            }
+    $('#toast-message').text(message);
+    const $toast = $('#toast-notification');
+    $toast.removeClass('hidden').css('display', 'block');
+    
+    // Re-bind close handler
+    $('#close-toast').off('click').on('click', function() {
+        hideToast();
+    });
+    
+    setTimeout(() => {
+        hideToast();
+    }, 4000);
+}
 
-            function hideToast() {
-                $('#toast-notification').fadeOut(300, function() {
-                    $(this).addClass('hidden').show();
-                });
-            }
+function hideToast() {
+    const $toast = $('#toast-notification');
+    $toast.fadeOut(300, function() {
+        $(this).addClass('hidden').css('display', '');
+    });
+}
         });
     </script>
 </body>
